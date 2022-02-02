@@ -1,0 +1,84 @@
+--1. a. Which prescriber had the highest total number of claims (totaled over all drugs)? Report the npi and the total number of claims.
+SELECT npi, total_claim_count
+FROM prescription
+ORDER BY total_claim_count DESC
+LIMIT 1;
+
+--1. b. Repeat the above, but this time report the nppes_provider_first_name, nppes_provider_last_org_name,  specialty_description, and the total number of claims.
+SELECT nppes_provider_first_name, nppes_provider_last_org_name,  specialty_description, total_claim_count
+FROM prescriber
+INNER JOIN prescription 
+USING(npi)
+ORDER BY total_claim_count DESC
+LIMIT 1;
+
+--2. a. Which specialty had the most total number of claims (totaled over all drugs)?
+SELECT specialty_description, SUM(total_claim_count)
+FROM prescriber
+INNER JOIN prescription 
+USING(npi)
+GROUP BY 1
+ORDER BY 2 DESC
+LIMIT 1;
+--2. b. Which specialty had the most total number of claims for opioids?
+SELECT specialty_description, COUNT(opioid_drug_flag)
+FROM (SELECT specialty_description, prescription.drug_name, opioid_drug_flag
+FROM prescriber
+FULL JOIN prescription 
+USING(npi)
+LEFT JOIN drug
+USING(drug_name)) AS opiods
+WHERE opioid_drug_flag = 'Y'
+GROUP BY specialty_description
+ORDER BY 2 DESC;
+--2. c. **Challenge Question:** Are there any specialties that appear in the prescriber table that have no associated prescriptions in the prescription table?
+SELECT specialty_description, COUNT(drug_name)
+FROM prescriber p
+FULL JOIN prescription
+USING(npi)
+GROUP BY specialty_description 
+ORDER BY 2;
+
+--3. a. Which drug (generic_name) had the highest total drug cost?
+SELECT generic_name, SUM(total_drug_cost)
+FROM prescription 
+JOIN drug
+USING(drug_name)
+GROUP BY generic_name
+ORDER BY 2 DESC;
+--3. b. Which drug (generic_name) has the hightest total cost per day? **Bonus: Round your cost per day column to 2 decimal places. Google ROUND to see how this works.
+SELECT generic_name, ROUND(SUM(total_drug_cost)/ SUM(total_day_supply), 2)
+FROM prescription 
+JOIN drug
+USING(drug_name)
+GROUP BY generic_name
+ORDER BY 2 DESC;
+
+/*4. a. For each drug in the drug table, return the drug name and then a column named 'drug_type' 
+which says 'opioid'for drugs which have opioid_drug_flag = 'Y', 
+says 'antibiotic' for those drugs which have antibiotic_drug_flag = 'Y', 
+and says 'neither' for all other drugs.*/
+SELECT drug_name,
+	CASE WHEN opioid_drug_flag = 'Y' THEN 'antibiotic'
+	WHEN antibiotic_drug_flag = 'Y' THEN 'opioid'
+	ELSE 'neither'
+	END AS drug_type
+FROM drug;
+/*4. b.  Building off of the query you wrote for part a, determine whether 
+more was spent (total_drug_cost) on opioids or on antibiotics. 
+Hint: Format the total costs as MONEY for easier comparision.*/
+SELECT drug_type, SUM(total_drug_cost)
+FROM(SELECT drug_name, total_drug_cost,
+		CASE WHEN opioid_drug_flag = 'Y' THEN 'antibiotic'
+		WHEN antibiotic_drug_flag = 'Y' THEN 'opioid'
+		ELSE 'neither'
+		END AS drug_type
+	 FROM drug
+	 FULL JOIN prescription 
+	 USING(drug_name)) AS drug_bill
+WHERE drug_type != 'neither'
+GROUP BY drug_type
+	
+	 
+	
+
